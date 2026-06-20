@@ -15,12 +15,14 @@ ini_set('display_errors', '0'); // keep raw errors out of the browser in "produc
 // ---------------------------------------------------------------
 // Database connection settings & connection (PostgreSQL via PDO)
 // ---------------------------------------------------------------
-$host     = getenv('DB_HOST') ?: 'localhost';
-$port     = getenv('DB_PORT') ?: '5432';
-$dbname   = getenv('DB_NAME') ?: 'bus_ticketing_db';
-$dbuser   = getenv('DB_USER') ?: 'postgres';
-$dbpass   = getenv('DB_PASSWORD') ?: '';
-$sslmode  = getenv('DB_SSLMODE') ?: (getenv('DB_HOST') ? 'require' : '');
+$host     = getenv('DB_HOST') ?: ($_SERVER['DB_HOST'] ?? ($_ENV['DB_HOST'] ?? 'localhost'));
+$port     = getenv('DB_PORT') ?: ($_SERVER['DB_PORT'] ?? ($_ENV['DB_PORT'] ?? '5432'));
+$dbname   = getenv('DB_NAME') ?: ($_SERVER['DB_NAME'] ?? ($_ENV['DB_NAME'] ?? 'bus_ticketing_db'));
+$dbuser   = getenv('DB_USER') ?: ($_SERVER['DB_USER'] ?? ($_ENV['DB_USER'] ?? 'postgres'));
+$dbpass   = getenv('DB_PASSWORD') ?: ($_SERVER['DB_PASSWORD'] ?? ($_ENV['DB_PASSWORD'] ?? ''));
+
+$hasDbHost = ($host !== 'localhost' && $host !== '127.0.0.1' && $host !== '');
+$sslmode  = getenv('DB_SSLMODE') ?: ($_SERVER['DB_SSLMODE'] ?? ($_ENV['DB_SSLMODE'] ?? ($hasDbHost ? 'require' : '')));
 
 try {
     $dsn = "pgsql:host={$host};port={$port};dbname={$dbname}";
@@ -123,8 +125,9 @@ class PdoSessionHandler implements SessionHandlerInterface
 // Session
 // ---------------------------------------------------------------
 if (session_status() === PHP_SESSION_NONE) {
-    // If DB_HOST is set (e.g. deployed on Vercel), use the database session handler
-    if (getenv('DB_HOST')) {
+    // If a remote DB_HOST is set (e.g. deployed on Vercel), use the database session handler
+    $dbHostEnv = getenv('DB_HOST') ?: ($_SERVER['DB_HOST'] ?? ($_ENV['DB_HOST'] ?? ''));
+    if ($dbHostEnv !== 'localhost' && $dbHostEnv !== '127.0.0.1' && $dbHostEnv !== '') {
         $sessionHandler = new PdoSessionHandler($pdo);
         session_set_save_handler($sessionHandler, true);
     }
@@ -139,8 +142,8 @@ if (session_status() === PHP_SESSION_NONE) {
 // ---------------------------------------------------------------
 function upload_to_supabase(string $fileTmpPath, string $filename, string $mime): ?string
 {
-    $supabaseUrl = getenv('SUPABASE_URL');
-    $supabaseKey = getenv('SUPABASE_KEY');
+    $supabaseUrl = getenv('SUPABASE_URL') ?: ($_SERVER['SUPABASE_URL'] ?? ($_ENV['SUPABASE_URL'] ?? null));
+    $supabaseKey = getenv('SUPABASE_KEY') ?: ($_SERVER['SUPABASE_KEY'] ?? ($_ENV['SUPABASE_KEY'] ?? null));
     if (!$supabaseUrl || !$supabaseKey) {
         return null;
     }
