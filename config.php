@@ -128,6 +128,18 @@ if (session_status() === PHP_SESSION_NONE) {
     // If a remote DB_HOST is set (e.g. deployed on Vercel), use the database session handler
     $dbHostEnv = getenv('DB_HOST') ?: ($_SERVER['DB_HOST'] ?? ($_ENV['DB_HOST'] ?? ''));
     if ($dbHostEnv !== 'localhost' && $dbHostEnv !== '127.0.0.1' && $dbHostEnv !== '') {
+        // Ensure sessions table exists (auto-create on first run)
+        try {
+            $pdo->exec('
+                CREATE TABLE IF NOT EXISTS sessions (
+                    id          VARCHAR(255) PRIMARY KEY,
+                    data        TEXT NOT NULL,
+                    timestamp   INTEGER NOT NULL
+                )
+            ');
+        } catch (PDOException $e) {
+            // Ignore — table may already exist or user lacks CREATE permissions
+        }
         $sessionHandler = new PdoSessionHandler($pdo);
         session_set_save_handler($sessionHandler, true);
     }
